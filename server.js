@@ -1,4 +1,7 @@
-// server.js
+// =============================
+// GUNBOUND SERVER (FULL)
+// =============================
+
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -42,7 +45,13 @@ io.on("connection", (socket) => {
   // -----------------------------
   // CREATE ROOM (HOST)
   // -----------------------------
-  socket.on("createRoom", ({ roomName, playerName, maxPlayers = 4 }) => {
+  socket.on("createRoom", ({
+    roomName,
+    playerName,
+    maxPlayers = 4,
+    mapName,
+    mapUrl
+  }) => {
     const roomId = "room_" + Date.now();
 
     rooms[roomId] = {
@@ -50,6 +59,11 @@ io.on("connection", (socket) => {
       name: roomName,
       hostId: socket.id,
       maxPlayers,
+
+      // MAP DATA
+      mapName: mapName || "Unknown Map",
+      mapUrl: mapUrl || "",
+
       status: "waiting",
       players: [],
       projectiles: [],
@@ -74,7 +88,7 @@ io.on("connection", (socket) => {
   });
 
   // -----------------------------
-  // GET AVAILABLE ROOMS (LOBBY)
+  // GET ROOMS (LOBBY)
   // -----------------------------
   socket.on("getRooms", () => {
     socket.emit("roomsUpdate", Object.values(rooms));
@@ -87,6 +101,7 @@ io.on("connection", (socket) => {
     const room = rooms[roomId];
     if (!room) return;
     if (room.players.length >= room.maxPlayers) return;
+    if (room.status !== "waiting") return;
 
     socket.join(roomId);
 
@@ -171,7 +186,7 @@ io.on("connection", (socket) => {
   });
 
   // -----------------------------
-  // DISCONNECT
+  // DISCONNECT HANDLING
   // -----------------------------
   socket.on("disconnect", () => {
     console.log("Player disconnected:", socket.id);
@@ -200,6 +215,7 @@ io.on("connection", (socket) => {
 setInterval(() => {
   for (const roomId in rooms) {
     const room = rooms[roomId];
+    if (room.status !== "playing") continue;
 
     room.projectiles.forEach((proj) => {
       proj.vy += proj.gravity / TICK_RATE;
